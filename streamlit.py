@@ -1,6 +1,7 @@
 import streamlit as st
 from PIL import Image
 import io
+from pdf_utils import images_to_pdf
 
 st.title("PNG → PDF 変換ツール（Web）")
 
@@ -16,8 +17,6 @@ if uploaded_files:
         with Image.open(file) as img:
             images.append(img.convert("RGB"))
 
-    with io.BytesIO() as buf:
-        images[0].save(buf, format="PDF", save_all=True, append_images=images[1:])
-        pdf_bytes = buf.getvalue()
+    pdf_bytes = images_to_pdf(images)
 
     st.download_button("📄 PDFをダウンロード", pdf_bytes, file_name="converted.pdf")
