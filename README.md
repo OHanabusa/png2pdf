@@ -12,3 +12,9 @@ PNG2PDF 変換ツール
 
 web版
 https://png2pdf-aaab8uzs4e4jn4vdf9pztk.streamlit.app/
+
+ローカルでweb版を実行する場合は以下のコマンドを使用してください。
+
+```bash
+streamlit run web_app.py
+```
