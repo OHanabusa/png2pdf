@@ -7,29 +7,79 @@ from io import BytesIO
 
 
 def cropper(img: Image.Image, key: str):
-    """Display interactive cropper and return crop box coordinates."""
+    """Display simple drag-to-crop widget and return box coordinates."""
     buffer = BytesIO()
     img.save(buffer, format="PNG")
     b64 = base64.b64encode(buffer.getvalue()).decode()
     component = html(
         f"""
-        <link rel='stylesheet' href='https://unpkg.com/cropperjs/dist/cropper.min.css'>
-        <script src='https://unpkg.com/cropperjs/dist/cropper.min.js'></script>
-        <img id='{key}' src='data:image/png;base64,{b64}' style='max-width:100%;'/>
-        <script>
-        const img = document.getElementById('{key}');
-        const cropper = new Cropper(img, {{viewMode:1, autoCropArea:1}});
-        function send() {{
-          const d = cropper.getData(true);
-          Streamlit.setComponentValue({{
-            left: Math.round(d.x),
-            top: Math.round(d.y),
-            right: Math.round(d.x + d.width),
-            bottom: Math.round(d.y + d.height)
-          }});
+        <style>
+        #container-{key} {{ position: relative; display: inline-block; }}
+        #cropbox-{key} {{
+            display: none;
+            position: absolute;
+            border: 2px dashed red;
+            pointer-events: none;
         }}
-        img.addEventListener('cropend', send);
-        img.addEventListener('ready', send);
+        </style>
+        <div id='container-{key}'>
+            <img id='img-{key}' src='data:image/png;base64,{b64}' style='max-width:100%; display:block;'>
+            <div id='cropbox-{key}'></div>
+        </div>
+        <script>
+        (function() {{
+            const img = document.getElementById('img-{key}');
+            const box = document.getElementById('cropbox-{key}');
+            let startX = 0, startY = 0, isDown = false;
+            img.addEventListener('mousedown', e => {{
+                const r = img.getBoundingClientRect();
+                startX = e.clientX - r.left;
+                startY = e.clientY - r.top;
+                isDown = true;
+                box.style.display = 'block';
+                box.style.left = startX + 'px';
+                box.style.top = startY + 'px';
+                box.style.width = 0;
+                box.style.height = 0;
+            }});
+            img.addEventListener('mousemove', e => {{
+                if (!isDown) return;
+                const r = img.getBoundingClientRect();
+                const x = e.clientX - r.left;
+                const y = e.clientY - r.top;
+                const left = Math.min(startX, x);
+                const top = Math.min(startY, y);
+                const right = Math.max(startX, x);
+                const bottom = Math.max(startY, y);
+                box.style.left = left + 'px';
+                box.style.top = top + 'px';
+                box.style.width = (right - left) + 'px';
+                box.style.height = (bottom - top) + 'px';
+            }});
+            window.addEventListener('mouseup', () => {{
+                if (!isDown) return;
+                isDown = false;
+                const r = img.getBoundingClientRect();
+                const left = parseFloat(box.style.left);
+                const top = parseFloat(box.style.top);
+                const width = parseFloat(box.style.width);
+                const height = parseFloat(box.style.height);
+                Streamlit.setComponentValue({{
+                    left: Math.round(left * img.naturalWidth / r.width),
+                    top: Math.round(top * img.naturalHeight / r.height),
+                    right: Math.round((left + width) * img.naturalWidth / r.width),
+                    bottom: Math.round((top + height) * img.naturalHeight / r.height)
+                }});
+            }});
+            img.addEventListener('load', () => {{
+                Streamlit.setComponentValue({{
+                    left: 0,
+                    top: 0,
+                    right: img.naturalWidth,
+                    bottom: img.naturalHeight
+                }});
+            }});
+        }})();
         </script>
         """,
         height=400,
@@ -52,7 +102,6 @@ if uploaded_files:
             st.image(img, caption=f"{file.name} (original)")
             with st.expander(f"編集: {file.name}"):
                 coords = cropper(img, key=f"{file.name}_crop")
-
                 rotation = st.slider(
                     "rotate (degrees)",
                     0,
@@ -61,6 +110,7 @@ if uploaded_files:
                     step=90,
                     key=f"{file.name}_rot",
                 )
+                flip = st.checkbox("flip horizontally", key=f"{file.name}_flip")
 
             if coords:
                 crop_box = (
@@ -76,6 +126,8 @@ if uploaded_files:
             if rotation:
                 # PIL rotates counterclockwise by default
                 edited = edited.rotate(-rotation, expand=True)
+            if flip:
+                edited = edited.transpose(Image.FLIP_LEFT_RIGHT)
             st.image(edited, caption=f"{file.name} (edited)")
             processed_images.append(edited.convert("RGB"))
 
