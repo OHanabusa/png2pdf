@@ -1,6 +1,41 @@
 import streamlit as st
 from PIL import Image
+from streamlit.components.v1 import html
 from pdf_utils import images_to_pdf
+import base64
+from io import BytesIO
+
+
+def cropper(img: Image.Image, key: str):
+    """Display interactive cropper and return crop box coordinates."""
+    buffer = BytesIO()
+    img.save(buffer, format="PNG")
+    b64 = base64.b64encode(buffer.getvalue()).decode()
+    component = html(
+        f"""
+        <link rel='stylesheet' href='https://unpkg.com/cropperjs/dist/cropper.min.css'>
+        <script src='https://unpkg.com/cropperjs/dist/cropper.min.js'></script>
+        <img id='{key}' src='data:image/png;base64,{b64}' style='max-width:100%;'/>
+        <script>
+        const img = document.getElementById('{key}');
+        const cropper = new Cropper(img, {{viewMode:1, autoCropArea:1}});
+        function send() {{
+          const d = cropper.getData(true);
+          Streamlit.setComponentValue({{
+            left: Math.round(d.x),
+            top: Math.round(d.y),
+            right: Math.round(d.x + d.width),
+            bottom: Math.round(d.y + d.height)
+          }});
+        }}
+        img.addEventListener('cropend', send);
+        img.addEventListener('ready', send);
+        </script>
+        """,
+        height=400,
+        key=key,
+    )
+    return component
 
 st.title("PNG → PDF 変換ツール（Web）")
 
@@ -15,36 +50,9 @@ if uploaded_files:
     for file in uploaded_files:
         with Image.open(file) as img:
             st.image(img, caption=f"{file.name} (original)")
-            width, height = img.size
             with st.expander(f"編集: {file.name}"):
-                left = st.slider(
-                    "left",
-                    0,
-                    width - 1,
-                    0,
-                    key=f"{file.name}_left",
-                )
-                top = st.slider(
-                    "top",
-                    0,
-                    height - 1,
-                    0,
-                    key=f"{file.name}_top",
-                )
-                right = st.slider(
-                    "right",
-                    left + 1,
-                    width,
-                    width,
-                    key=f"{file.name}_right",
-                )
-                bottom = st.slider(
-                    "bottom",
-                    top + 1,
-                    height,
-                    height,
-                    key=f"{file.name}_bottom",
-                )
+                coords = cropper(img, key=f"{file.name}_crop")
+
                 rotation = st.slider(
                     "rotate (degrees)",
                     0,
@@ -54,7 +62,16 @@ if uploaded_files:
                     key=f"{file.name}_rot",
                 )
 
-            crop_box = (left, top, right, bottom)
+            if coords:
+                crop_box = (
+                    coords.get("left", 0),
+                    coords.get("top", 0),
+                    coords.get("right", img.width),
+                    coords.get("bottom", img.height),
+                )
+            else:
+                crop_box = (0, 0, img.width, img.height)
+
             edited = img.crop(crop_box)
             if rotation:
                 # PIL rotates counterclockwise by default
