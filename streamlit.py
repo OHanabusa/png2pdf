@@ -19,6 +19,7 @@ def cropper(img: Image.Image, key: str):
             display: none;
             position: absolute;
             border: 2px dashed red;
+            background-color: rgba(255,0,0,0.1);
             pointer-events: none;
         }}
         </style>
