@@ -83,7 +83,6 @@ def cropper(img: Image.Image, key: str):
         </script>
         """,
         height=400,
-        key=key,
     )
     return component
 
