@@ -34,6 +34,7 @@ def cropper(img: Image.Image, key: str):
             const box = document.getElementById('cropbox-{key}');
             let startX = 0, startY = 0, isDown = false;
             img.addEventListener('mousedown', e => {{
+                e.preventDefault();
                 const r = img.getBoundingClientRect();
                 startX = e.clientX - r.left;
                 startY = e.clientY - r.top;
