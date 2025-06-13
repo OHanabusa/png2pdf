@@ -17,3 +17,4 @@ https://png2pdf-aaab8uzs4e4jn4vdf9pztk.streamlit.app/
 - 画像上でドラッグしてクロップ範囲を調整可能
 - 90度単位で回転させてからPDFに変換
 - 左右反転を指定可能
+
