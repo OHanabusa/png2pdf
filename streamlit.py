@@ -19,6 +19,7 @@ def cropper(img: Image.Image, key: str):
             display: none;
             position: absolute;
             border: 2px dashed red;
+            background-color: rgba(255,0,0,0.1);
             pointer-events: none;
         }}
         </style>
@@ -83,7 +84,6 @@ def cropper(img: Image.Image, key: str):
         </script>
         """,
         height=400,
-        key=key,
     )
     return component
 
@@ -112,7 +112,7 @@ if uploaded_files:
                 )
                 flip = st.checkbox("flip horizontally", key=f"{file.name}_flip")
 
-            if coords:
+            if isinstance(coords, dict):
                 crop_box = (
                     coords.get("left", 0),
                     coords.get("top", 0),
