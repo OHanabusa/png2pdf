@@ -12,3 +12,7 @@ PNG2PDF 変換ツール
 
 web版
 https://png2pdf-aaab8uzs4e4jn4vdf9pztk.streamlit.app/
+
+【web版の追加機能】
+- 画像ごとに左右・上下の範囲を指定してクロップ可能
+- 90度単位で回転させてからPDFに変換
