@@ -1,93 +1,53 @@
 import streamlit as st
 from PIL import Image
-from streamlit.components.v1 import html
 from pdf_utils import images_to_pdf
-import base64
-from io import BytesIO
+import numpy as np
 
 
-def cropper(img: Image.Image, key: str):
-    """Display simple drag-to-crop widget and return box coordinates."""
-    buffer = BytesIO()
-    img.save(buffer, format="PNG")
-    b64 = base64.b64encode(buffer.getvalue()).decode()
-    component = html(
-        f"""
-        <style>
-        #container-{key} {{ position: relative; display: inline-block; }}
-        #cropbox-{key} {{
-            display: none;
-            position: absolute;
-            border: 2px dashed red;
-            background-color: rgba(255,0,0,0.1);
-            z-index: 1;
-            pointer-events: none;
-        }}
-        </style>
-        <div id='container-{key}'>
-            <img id='img-{key}' src='data:image/png;base64,{b64}' style='max-width:100%; display:block; cursor: crosshair; user-select:none;' draggable='false'>
-            <div id='cropbox-{key}'></div>
-        </div>
-        <script>
-        (function() {{
-            const img = document.getElementById('img-{key}');
-            const box = document.getElementById('cropbox-{key}');
-            let startX = 0, startY = 0, isDown = false;
-            img.addEventListener('mousedown', e => {{
-                e.preventDefault();
-                const r = img.getBoundingClientRect();
-                startX = e.clientX - r.left;
-                startY = e.clientY - r.top;
-                isDown = true;
-                box.style.display = 'block';
-                box.style.left = startX + 'px';
-                box.style.top = startY + 'px';
-                box.style.width = 0;
-                box.style.height = 0;
-            }});
-            img.addEventListener('mousemove', e => {{
-                if (!isDown) return;
-                const r = img.getBoundingClientRect();
-                const x = e.clientX - r.left;
-                const y = e.clientY - r.top;
-                const left = Math.min(startX, x);
-                const top = Math.min(startY, y);
-                const right = Math.max(startX, x);
-                const bottom = Math.max(startY, y);
-                box.style.left = left + 'px';
-                box.style.top = top + 'px';
-                box.style.width = (right - left) + 'px';
-                box.style.height = (bottom - top) + 'px';
-            }});
-            window.addEventListener('mouseup', () => {{
-                if (!isDown) return;
-                isDown = false;
-                const r = img.getBoundingClientRect();
-                const left = parseFloat(box.style.left);
-                const top = parseFloat(box.style.top);
-                const width = parseFloat(box.style.width);
-                const height = parseFloat(box.style.height);
-                Streamlit.setComponentValue({{
-                    left: Math.round(left * img.naturalWidth / r.width),
-                    top: Math.round(top * img.naturalHeight / r.height),
-                    right: Math.round((left + width) * img.naturalWidth / r.width),
-                    bottom: Math.round((top + height) * img.naturalHeight / r.height)
-                }});
-            }});
-            img.addEventListener('load', () => {{
-                Streamlit.setComponentValue({{
-                    left: 0,
-                    top: 0,
-                    right: img.naturalWidth,
-                    bottom: img.naturalHeight
-                }});
-            }});
-        }})();
-        </script>
-        """,
-        height=400,
+def display_image_with_crop_sliders(img: Image.Image, key: str):
+    """Display image with sliders for horizontal and vertical cropping."""
+    # Get image dimensions
+    width, height = img.size
+    
+    # Create columns for original and preview
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.write("元画像 (Original)")
+        st.image(img, use_container_width=True)
+    
+    # Create sliders for horizontal cropping (left and right)
+    st.write("水平方向のクロップ範囲 (Horizontal crop range)")
+    h_crop = st.slider(
+        "左右の範囲 (Left-Right)",
+        0, width, (0, width),
+        key=f"{key}_h_crop"
     )
-    return component
+    
+    # Create sliders for vertical cropping (top and bottom)
+    st.write("垂直方向のクロップ範囲 (Vertical crop range)")
+    v_crop = st.slider(
+        "上下の範囲 (Top-Bottom)",
+        0, height, (0, height),
+        key=f"{key}_v_crop"
+    )
+    
+    # Create crop coordinates
+    coords = {
+        "left": h_crop[0],
+        "right": h_crop[1],
+        "top": v_crop[0],
+        "bottom": v_crop[1]
+    }
+    
+    # Show cropped preview
+    with col2:
+        st.write("クロッププレビュー (Crop Preview)")
+        cropped_img = img.crop((coords["left"], coords["top"], coords["right"], coords["bottom"]))
+        st.image(cropped_img, use_container_width=True)
+    
+    # Return crop coordinates
+    return coords
 
 st.title("PNG → PDF 変換ツール（Web）")
 
@@ -101,9 +61,8 @@ if uploaded_files:
     processed_images = []
     for file in uploaded_files:
         with Image.open(file) as img:
-            st.image(img, caption=f"{file.name} (original)")
-            with st.expander(f"編集: {file.name}"):
-                coords = cropper(img, key=f"{file.name}_crop")
+            with st.expander(f"編集: {file.name}", expanded=True):
+                coords = display_image_with_crop_sliders(img, key=f"{file.name}")
                 rotation = st.slider(
                     "rotate (degrees)",
                     0,
