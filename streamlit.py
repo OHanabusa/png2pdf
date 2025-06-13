@@ -52,6 +52,7 @@ if uploaded_files:
             st.image(img, caption=f"{file.name} (original)")
             with st.expander(f"編集: {file.name}"):
                 coords = cropper(img, key=f"{file.name}_crop")
+
                 rotation = st.slider(
                     "rotate (degrees)",
                     0,
